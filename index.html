@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ContactSearch</title>
+<style>
+  :root {
+    --bg:#f0f2f5;--sidebar-bg:#fff;--chat-bg:#e5ddd5;
+    --bubble-in:#fff;--bubble-out:#d9fdd3;
+    --accent:#00a884;--accent2:#008069;
+    --text:#111b21;--text2:#667781;
+    --border:#e9edef;--input-bg:#fff;
+    --header-bg:#f0f2f5;--card-bg:#fff;
+    --shadow:rgba(0,0,0,0.08);
+    --tag-bg:#e7f3ef;--tag-text:#008069;
+  }
+  [data-theme="dark"] {
+    --bg:#111b21;--sidebar-bg:#202c33;--chat-bg:#0b141a;
+    --bubble-in:#202c33;--bubble-out:#005c4b;
+    --accent:#00a884;--accent2:#00cf9d;
+    --text:#e9edef;--text2:#8696a0;
+    --border:#2a3942;--input-bg:#2a3942;
+    --header-bg:#202c33;--card-bg:#2a3942;
+    --shadow:rgba(0,0,0,0.3);
+    --tag-bg:#0d3f33;--tag-text:#00cf9d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;overflow:hidden;}
+
+  /* PIN */
+  #pinOverlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;}
+  .pin-box{background:var(--card-bg);border-radius:20px;padding:32px 28px;box-shadow:0 8px 32px rgba(0,0,0,.15);width:280px;text-align:center;border:1px solid var(--border);}
+  .pin-dots{display:flex;gap:12px;justify-content:center;margin:18px 0;}
+  .pin-dot{width:13px;height:13px;border-radius:50%;background:var(--border);transition:background .2s;}
+  .pin-dot.filled{background:var(--accent);}
+  .pin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:9px;}
+  .pin-btn{padding:15px;border:1px solid var(--border);border-radius:11px;background:var(--input-bg);color:var(--text);font-size:19px;font-weight:600;cursor:pointer;transition:background .15s;}
+  .pin-btn:hover{background:var(--tag-bg);}
+  .pin-btn.back{color:var(--text2);font-size:17px;}
+  .pin-error{font-size:12px;color:#ef4444;margin-top:12px;height:15px;}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+  .shake{animation:shake .3s ease;}
+
+  /* LAYOUT */
+  .sidebar{width:300px;background:var(--sidebar-bg);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
+  .s-head{padding:12px 14px;background:var(--header-bg);display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);}
+  .logo{width:38px;height:38px;background:linear-gradient(135deg,#00a884,#005c4b);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;}
+  .s-title{flex:1;}.s-title h1{font-size:15px;font-weight:700;}.s-title span{font-size:11px;color:var(--accent);}
+  .icon-btn{width:32px;height:32px;border:none;background:transparent;cursor:pointer;color:var(--text2);font-size:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:background .2s;}
+  .icon-btn:hover{background:var(--border);}
+  .s-search{padding:8px 12px;}
+  .s-search input{width:100%;padding:7px 13px;background:var(--input-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:13px;outline:none;}
+  .s-search input::placeholder{color:var(--text2);}
+  .sec-label{padding:8px 14px 3px;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;}
+  .chat-list{flex:1;overflow-y:auto;}
+  .c-item{padding:9px 13px;display:flex;gap:10px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s;align-items:center;}
+  .c-item:hover,.c-item.active{background:var(--tag-bg);}
+  .c-av{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;background:linear-gradient(135deg,#00a88422,#00a88444);}
+  .c-info{flex:1;min-width:0;}
+  .c-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .c-sub{font-size:11px;color:var(--text2);margin-top:1px;}
+  .cat-chip{background:var(--card-bg);border:1px solid var(--border);color:var(--text2);font-size:11px;padding:4px 9px;border-radius:12px;cursor:pointer;transition:all .2s;white-space:nowrap;}
+  .cat-chip:hover{border-color:var(--accent);color:var(--accent);}
+  .cat-chip.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+  /* VK PANEL */
+  .vk-panel{margin:10px 12px;background:var(--card-bg);border-radius:12px;padding:12px;border:1px solid var(--border);}
+  .vk-panel h3{font-size:13px;font-weight:600;margin-bottom:8px;}
+  .vk-status{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text2);margin-bottom:8px;}
+  .vk-dot{width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0;}
+  .vk-dot.ok{background:#00a884;}.vk-dot.err{background:#ef4444;}
+  .vk-btn{width:100%;padding:7px;background:#0077ff;color:#fff;border:none;border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;transition:background .2s;}
+  .vk-btn:hover{background:#0060cc;}
+  .vk-btn.logout{background:var(--tag-bg);color:var(--tag-text);}
+  .vk-note{font-size:10px;color:var(--text2);margin-top:6px;line-height:1.5;}
+
+  /* MAIN */
+  .chat-main{flex:1;display:flex;flex-direction:column;background:var(--chat-bg);overflow:hidden;}
+  .c-head{padding:10px 15px;background:var(--header-bg);display:flex;align-items:center;gap:11px;border-bottom:1px solid var(--border);}
+  .c-head-av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#00a884,#005c4b);display:flex;align-items:center;justify-content:center;font-size:19px;}
+  .c-head-info h2{font-size:15px;font-weight:600;}.c-head-info p{font-size:11px;color:var(--accent);}
+  .h-actions{margin-left:auto;display:flex;gap:5px;}
+  .load-bar{height:2px;background:linear-gradient(90deg,var(--accent),#005c4b,var(--accent));background-size:200%;animation:shimmer 1.5s infinite;display:none;}
+  @keyframes shimmer{0%{background-position:200%}100%{background-position:-200%}}
+
+  /* MESSAGES */
+  .msgs{flex:1;overflow-y:auto;padding:13px;display:flex;flex-direction:column;gap:3px;}
+  .msgs::-webkit-scrollbar{width:5px;}.msgs::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+  .mrow{display:flex;}.mrow.out{justify-content:flex-end;}
+  .bbl{max-width:78%;padding:8px 12px;border-radius:12px;font-size:14px;line-height:1.55;box-shadow:0 1px 2px var(--shadow);}
+  .bbl.out{background:var(--bubble-out);border-bottom-right-radius:3px;}
+  .bbl.in{background:var(--bubble-in);border-bottom-left-radius:3px;}
+  .mtime{font-size:11px;color:var(--text2);text-align:right;margin-top:3px;}
+  .ddiv{text-align:center;margin:8px 0;}
+  .ddiv span{background:rgba(0,0,0,.18);color:#fff;font-size:11px;padding:3px 12px;border-radius:12px;}
+  [data-theme="dark"] .ddiv span{background:rgba(255,255,255,.1);}
+  .dots{display:flex;gap:4px;align-items:center;padding:6px 2px;}
+  .dot{width:7px;height:7px;background:var(--text2);border-radius:50%;animation:bop 1.2s infinite;}
+  .dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+  @keyframes bop{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+
+  /* CARDS */
+  .vk-card{background:var(--card-bg);border-radius:14px;overflow:hidden;width:320px;box-shadow:0 2px 8px var(--shadow);border:1px solid var(--border);}
+  .vc-hero{padding:13px;display:flex;gap:11px;align-items:flex-start;border-bottom:1px solid var(--border);}
+  .vc-av{width:56px;height:56px;border-radius:12px;object-fit:cover;flex-shrink:0;background:var(--tag-bg);}
+  .vc-av-ph{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#00a88433,#00a88466);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;}
+  .vc-meta h3{font-size:15px;font-weight:700;line-height:1.2;}
+  .vc-meta .sub{font-size:12px;color:var(--text2);margin-top:2px;}
+  .vbadge{display:inline-flex;align-items:center;gap:3px;background:#e3f2fd;color:#1565c0;font-size:10px;padding:2px 7px;border-radius:8px;margin-top:4px;}
+  [data-theme="dark"] .vbadge{background:rgba(21,101,192,.2);}
+  .cbadge{display:inline-flex;align-items:center;gap:3px;background:#fce4ec;color:#c62828;font-size:10px;padding:2px 7px;border-radius:8px;margin-top:4px;}
+  [data-theme="dark"] .cbadge{background:rgba(198,40,40,.2);}
+  .vc-rows{padding:10px 13px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:5px;}
+  .vcr{display:flex;align-items:center;gap:7px;font-size:13px;}
+  .vci{width:20px;text-align:center;font-size:12px;flex-shrink:0;}
+  .vcr a{color:var(--accent);text-decoration:none;word-break:break-all;}
+  .vcr a:hover{text-decoration:underline;}
+  .vc-btns{padding:10px 13px;display:flex;gap:7px;}
+  .vcbtn{flex:1;padding:7px;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;}
+  .vcbtn.p{background:var(--accent);color:#fff;}.vcbtn.p:hover{background:var(--accent2);}
+  .vcbtn.s{background:var(--tag-bg);color:var(--tag-text);}.vcbtn.s:hover{opacity:.8;}
+  .vcbtn:disabled{opacity:.5;cursor:not-allowed;}
+  .vc-foot{padding:4px 13px 10px;font-size:10px;color:var(--text2);}
+
+  /* EMPLOYEES */
+  .emp-list{display:flex;flex-direction:column;gap:6px;width:320px;}
+  .emp-card{background:var(--card-bg);border-radius:11px;padding:10px 11px;display:flex;gap:9px;align-items:center;box-shadow:0 1px 4px var(--shadow);border:1px solid var(--border);}
+  .emp-av{width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;}
+  .emp-av-ph{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#00a88422,#00a88444);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+  .emp-info{flex:1;min-width:0;}
+  .emp-name{font-size:13px;font-weight:600;}
+  .emp-pos{font-size:11px;color:var(--text2);margin-top:1px;}
+  .emp-vk{font-size:11px;color:var(--accent);text-decoration:none;margin-top:2px;display:block;}
+  .cp-btn{width:28px;height:28px;border:none;background:var(--tag-bg);color:var(--tag-text);border-radius:7px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;}
+  .cp-btn:hover{background:var(--accent);color:#fff;}
+
+  /* PROGRESS */
+  .prog-card{background:var(--card-bg);border-radius:12px;padding:13px;width:320px;border:1px solid var(--border);}
+  .prog-title{font-size:13px;font-weight:600;margin-bottom:10px;}
+  .prog-step{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);margin-bottom:7px;}
+  .prog-step.done{color:var(--accent);}.prog-step.active{color:var(--text);font-weight:500;}
+  .prog-icon{font-size:14px;width:20px;text-align:center;}
+  .prog-bar-wrap{background:var(--border);border-radius:4px;height:4px;margin-top:8px;overflow:hidden;}
+  .prog-bar{height:4px;background:var(--accent);border-radius:4px;transition:width .4s;}
+
+  /* CHIPS */
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+  .chip{background:var(--card-bg);border:1px solid var(--border);color:var(--text);font-size:12px;padding:5px 11px;border-radius:15px;cursor:pointer;transition:all .2s;box-shadow:0 1px 2px var(--shadow);}
+  .chip:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+  /* INPUT */
+  .inp-area{padding:9px 13px;background:var(--header-bg);border-top:1px solid var(--border);display:flex;gap:8px;align-items:flex-end;}
+  .inp-wrap{flex:1;background:var(--input-bg);border-radius:22px;border:1px solid var(--border);display:flex;align-items:center;padding:0 13px;}
+  .inp-wrap textarea{flex:1;border:none;background:transparent;color:var(--text);font-size:14px;resize:none;outline:none;padding:9px 0;max-height:90px;font-family:inherit;line-height:1.4;}
+  .inp-wrap textarea::placeholder{color:var(--text2);}
+  .send-btn{width:42px;height:42px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;}
+  .send-btn:hover{background:var(--accent2);transform:scale(1.05);}
+  .send-btn:disabled{background:var(--border);transform:none;cursor:not-allowed;}
+  .send-btn svg{width:19px;height:19px;fill:#fff;}
+
+  /* WELCOME */
+  .welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;text-align:center;padding:28px;gap:10px;}
+  .welcome-icon{font-size:50px;}
+  .welcome h3{font-size:19px;font-weight:700;}
+  .welcome p{font-size:13px;color:var(--text2);line-height:1.7;max-width:330px;}
+
+  /* TOAST */
+  .toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(14px);background:#1a1a2e;color:#fff;padding:7px 17px;border-radius:18px;font-size:13px;opacity:0;transition:all .3s;pointer-events:none;z-index:9998;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  @media(max-width:680px){.sidebar{display:none;}}
+</style>
+</head>
+<body>
+
+<!-- PIN OVERLAY -->
+<div id="pinOverlay">
+  <div class="pin-box" id="pinBox">
+    <div style="font-size:44px;margin-bottom:10px">🔒</div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:4px">ContactSearch</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:4px">Введите PIN для доступа</div>
+    <div class="pin-dots">
+      <div class="pin-dot" id="pd0"></div>
+      <div class="pin-dot" id="pd1"></div>
+      <div class="pin-dot" id="pd2"></div>
+      <div class="pin-dot" id="pd3"></div>
+    </div>
+    <div class="pin-grid">
+      <button class="pin-btn" onclick="pinPress('1')">1</button>
+      <button class="pin-btn" onclick="pinPress('2')">2</button>
+      <button class="pin-btn" onclick="pinPress('3')">3</button>
+      <button class="pin-btn" onclick="pinPress('4')">4</button>
+      <button class="pin-btn" onclick="pinPress('5')">5</button>
+      <button class="pin-btn" onclick="pinPress('6')">6</button>
+      <button class="pin-btn" onclick="pinPress('7')">7</button>
+      <button class="pin-btn" onclick="pinPress('8')">8</button>
+      <button class="pin-btn" onclick="pinPress('9')">9</button>
+    </div>
+    <div class="pin-grid">
+      <div></div>
+      <button class="pin-btn" onclick="pinPress('0')">0</button>
+      <button class="pin-btn back" onclick="pinBackspace()">⌫</button>
+    </div>
+    <div class="pin-error" id="pinError"></div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="s-head">
+    <div class="logo">🔍</div>
+    <div class="s-title"><h1>ContactSearch</h1><span id="vkModeLabel">AI поиск</span></div>
+    <button class="icon-btn" onclick="toggleTheme()">🌙</button>
+  </div>
+  <div class="vk-panel">
+    <h3>🔑 VK API</h3>
+    <div class="vk-status">
+      <div class="vk-dot" id="vkDot"></div>
+      <span id="vkStatusText">Не подключено</span>
+    </div>
+    <div id="vkAuthForm">
+      <button class="vk-btn" onclick="startVKAuth()">🔐 Войти через VK</button>
+      <div class="vk-note">Запросит только доступ к группам. Личные данные не используются.</div>
+    </div>
+    <div id="vkAuthed" style="display:none">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:7px">👤 <span id="vkUserName"></span></div>
+      <button class="vk-btn logout" onclick="vkLogout()">Выйти из VK</button>
+    </div>
+  </div>
+  <div class="sec-label">Категории</div>
+  <div style="padding:6px 10px;display:flex;flex-wrap:wrap;gap:5px" id="catFilters"></div>
+  <div class="sec-label" id="quickLabel">Все компании</div>
+  <div class="chat-list" id="chatList"></div>
+</div>
+
+<!-- MAIN -->
+<div class="chat-main">
+  <div class="c-head">
+    <div class="c-head-av">🔍</div>
+    <div class="c-head-info">
+      <h2>Contact Search</h2>
+      <p id="statusLine">готов к поиску</p>
+    </div>
+    <div class="h-actions">
+      <button class="icon-btn" onclick="clearChat()">🗑️</button>
+    </div>
+  </div>
+  <div id="loadBar" class="load-bar"></div>
+  <div class="msgs" id="msgs"></div>
+  <div class="inp-area">
+    <div class="inp-wrap">
+      <textarea id="qi" placeholder="Введите название любой компании или бренда..." rows="1"
+        onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+    </div>
+    <button class="send-btn" id="sendBtn" onclick="sendQuery()">
+      <svg viewBox="0 0 24 24"><path d="M2,21L23,12L2,3V10L17,12L2,14V21Z"/></svg>
+    </button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG ──
+const PIN_HASH = '4d1149f568afc0c6b9759b4bb61b89932ff03a08e9effab79f280ec930b5a3dc';
+const VK_APP_ID   = '54520164';
+const VK_REDIRECT = 'https://claude.ai/artifacts/latest/9dbc134a-c049-4a05-b91a-02f949f393bc';
+const VK_API      = 'https://api.vk.com/method';
+const VK_V        = '5.199';
+
+// ── CATEGORIES ──
+const CATEGORIES = [
+  {label:'💄 Beauty',       examples:['Londa Professional','MAC Cosmetics','Kérastase','NYX Professional']},
+  {label:'🏗️ Строительство',examples:['Knauf','Ceresit','Технониколь','Rehau']},
+  {label:'🍕 Еда / HoReCa', examples:['Bonduelle','Makfa','Додо Пицца','Nestle Russia']},
+  {label:'💊 Фармацевтика', examples:['Фармстандарт','Отисифарм','Renewal','Solopharm']},
+  {label:'🚗 Авто',          examples:['ЛУКОЙЛ','Автодом','Major Auto','Рольф']},
+  {label:'💻 IT',            examples:['1С','Kaspersky','HeadHunter','СКБ Контур']},
+  {label:'👗 Мода',          examples:['Melon Fashion','Zarina','Love Republic','Befree']},
+  {label:'🏦 Финансы',       examples:['Сбербанк','Тинькофф','Альфа-Банк','ВТБ']},
+];
+const QUICK = CATEGORIES.flatMap(c => c.examples.slice(0,2).map(n=>({n, e:c.label.split(' ')[0]})));
+
+// ── STATE ──
+let vkToken = null, isLoading = false, activeCategory = null;
+let pinEntered = '';
+
+// ── PIN ──
+window.onload = () => {
+  checkTokenFromHash();
+  if (sessionStorage.getItem('cs_ok') === '1') {
+    unlockApp();
+  }
+  // else pin overlay already visible in HTML
+};
+
+function pinPress(d) {
+  if (pinEntered.length >= 4) return;
+  pinEntered += d;
+  updateDots();
+  if (pinEntered.length === 4) setTimeout(checkPin, 150);
+}
+
+function pinBackspace() {
+  pinEntered = pinEntered.slice(0, -1);
+  updateDots();
+}
+
+function updateDots() {
+  for (let i = 0; i < 4; i++) {
+    document.getElementById('pd' + i).className = 'pin-dot' + (i < pinEntered.length ? ' filled' : '');
+  }
+}
+
+async function checkPin() {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(pinEntered);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+  if (hashHex === PIN_HASH) {
+    sessionStorage.setItem('cs_ok', '1');
+    document.getElementById('pinOverlay').style.display = 'none';
+    unlockApp();
+  } else {
+    document.getElementById('pinError').textContent = 'Неверный PIN — попробуйте ещё раз';
+    pinEntered = '';
+    updateDots();
+    const box = document.getElementById('pinBox');
+    box.classList.add('shake');
+    setTimeout(() => box.classList.remove('shake'), 350);
+  }
+}
+
+function unlockApp() {
+  renderCategories();
+  renderSidebar();
+  showWelcome();
+  if (vkToken) setVKAuthed();
+}
+
+// ── VK AUTH ──
+function startVKAuth() {
+  const redirect = 'https://claude.ai/artifacts/latest/9dbc134a-c049-4a05-b91a-02f949f393bc';
+  // Пробуем новый VK ID endpoint
+  const url = `https://id.vk.com/authorize?client_id=${VK_APP_ID}&display=popup&redirect_uri=${encodeURIComponent(redirect)}&scope=groups&response_type=token&v=${VK_V}`;
+  const popup = window.open(url, 'vk_auth', 'width=600,height=500,left=200,top=100');
+
+  const timer = setInterval(() => {
+    try {
+      const href = popup?.location?.href || '';
+      if (href.includes('access_token') || href.includes(redirect)) {
+        const hash = popup.location.hash.substring(1);
+        const search = popup.location.search.substring(1);
+        const raw = hash || search;
+        if (raw.includes('access_token')) {
+          clearInterval(timer);
+          popup.close();
+          const p = Object.fromEntries(raw.split('&').map(x => x.split('=')));
+          if (p.access_token) {
+            vkToken = p.access_token;
+            setVKAuthed();
+            showToast('✅ VK подключён!');
+          }
+        }
+      }
+      if (popup?.closed) clearInterval(timer);
+    } catch(e) {}
+  }, 500);
+}
+
+function checkTokenFromHash() {
+  // При popup-флоу токен читается напрямую, этот метод не нужен
+}
+
+function setVKAuthed() {
+  document.getElementById('vkDot').className = 'vk-dot ok';
+  document.getElementById('vkStatusText').textContent = 'Подключено';
+  document.getElementById('vkModeLabel').textContent = 'VK поиск';
+  document.getElementById('vkAuthForm').style.display = 'none';
+  document.getElementById('vkAuthed').style.display = 'block';
+  renderSidebar();
+  // load user name
+  vkCall('users.get', {}).then(d => {
+    const u = d.response?.[0];
+    if (u) document.getElementById('vkUserName').textContent = `${u.first_name} ${u.last_name}`;
+  }).catch(()=>{});
+}
+
+function vkLogout() {
+  vkToken = null;
+  document.getElementById('vkDot').className = 'vk-dot';
+  document.getElementById('vkStatusText').textContent = 'Не подключено';
+  document.getElementById('vkModeLabel').textContent = 'AI поиск';
+  document.getElementById('vkAuthForm').style.display = 'block';
+  document.getElementById('vkAuthed').style.display = 'none';
+  renderSidebar();
+}
+
+async function vkCall(method, params = {}) {
+  if (!vkToken) throw new Error('Нет VK токена');
+  const p = new URLSearchParams({...params, access_token: vkToken, v: VK_V});
+  const r = await fetch(`${VK_API}/${method}?${p}`);
+  const d = await r.json();
+  if (d.error) throw new Error(`VK: ${d.error.error_msg} (${d.error.error_code})`);
+  return d;
+}
+
+// ── SIDEBAR ──
+function renderCategories() {
+  document.getElementById('catFilters').innerHTML = CATEGORIES.map(c =>
+    `<div class="cat-chip" id="cat_${c.label}" onclick="filterCat('${c.label}')">${c.label}</div>`
+  ).join('');
+}
+
+function filterCat(label) {
+  activeCategory = activeCategory === label ? null : label;
+  document.querySelectorAll('.cat-chip').forEach(el =>
+    el.classList.toggle('active', el.id === `cat_${label}` && activeCategory === label)
+  );
+  document.getElementById('quickLabel').textContent = activeCategory || 'Все компании';
+  renderSidebar();
+}
+
+function renderSidebar(filter = '') {
+  let list = activeCategory
+    ? (CATEGORIES.find(c => c.label === activeCategory)?.examples || []).map(n => ({n, e: activeCategory.split(' ')[0]}))
+    : QUICK;
+  if (filter) list = list.filter(b => b.n.toLowerCase().includes(filter.toLowerCase()));
+  document.getElementById('chatList').innerHTML = list.map(b => `
+    <div class="c-item" onclick="quickSearch('${b.n.replace(/'/g,"\\'")}')">
+      <div class="c-av">${b.e}</div>
+      <div class="c-info">
+        <div class="c-name">${b.n}</div>
+        <div class="c-sub">${vkToken ? '⚡ VK поиск' : '🤖 AI поиск'}</div>
+      </div>
+    </div>`).join('');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const si = document.querySelector('.s-search input');
+  if (si) si.oninput = e => renderSidebar(e.target.value);
+});
+
+// ── SEARCH ──
+function quickSearch(name) {
+  document.getElementById('qi').value = name;
+  sendQuery();
+}
+
+async function sendQuery() {
+  const inp = document.getElementById('qi');
+  const q = inp.value.trim();
+  if (!q || isLoading) return;
+  inp.value = ''; autoResize(inp);
+  setLoading(true);
+  const m = document.getElementById('msgs');
+  if (m.querySelector('.welcome')) m.innerHTML = '';
+  addDateDiv('Сегодня');
+  addBubble('out', q);
+  if (vkToken) await vkSearchFlow(q);
+  else await aiSearchFlow(q);
+  setLoading(false);
+}
+
+// ── VK FLOW ──
+async function vkSearchFlow(query) {
+  const pid = 'p' + Date.now();
+  addProgressCard(pid, [
+    {id:'s1', label:'Поиск VK-сообщества'},
+    {id:'s2', label:'Верификация'},
+    {id:'s3', label:'Загрузка участников'},
+    {id:'s4', label:'Фильтрация по работе'},
+  ]);
+  try {
+    updateStep(pid,'s1','active');
+    const gs = await vkCall('groups.search', {q: query, type:'page', count:10});
+    const groups = gs.response?.items || [];
+    if (!groups.length) {
+      updateStep(pid,'s1','err');
+      addBubble('in', `😕 Сообщество «${query}» не найдено в VK.`);
+      removeCard(pid); return;
+    }
+    updateStep(pid,'s1','done', `${groups.length} найдено`);
+
+    updateStep(pid,'s2','active');
+    const ids = groups.map(g=>g.id).join(',');
+    const gb = await vkCall('groups.getById', {group_ids: ids, fields:'description,site,members_count,verified,photo_200'});
+    const detailed = (gb.response?.groups || gb.response || []).sort((a,b) =>
+      (b.verified||0) - (a.verified||0) || (b.members_count||0) - (a.members_count||0)
+    );
+    const best = detailed[0];
+    updateStep(pid,'s2','done', best.verified ? '✓ Верифицировано' : 'Без верификации');
+
+    updateStep(pid,'s3','active');
+    const gm = await vkCall('groups.getMembers', {
+      group_id: best.id,
+      fields: 'career,occupation,photo_50,screen_name,first_name,last_name,is_closed',
+      count: 1000, offset: 0
+    });
+    const members = gm.response?.items || [];
+    const total = gm.response?.count || 0;
+    updateStep(pid,'s3','done', `${members.length} из ${total}`);
+
+    updateStep(pid,'s4','active');
+    const ql = query.toLowerCase();
+    const employees = [];
+    for (const u of members) {
+      if (u.is_closed) continue;
+      let pos = null;
+      for (const j of (u.career || [])) {
+        const c = (j.company||'').toLowerCase();
+        if (c.includes(ql) || ql.split(' ').some(w => w.length > 3 && c.includes(w))) {
+          pos = j.position || 'Сотрудник'; break;
+        }
+      }
+      if (!pos && (u.occupation?.name||'').toLowerCase().includes(ql)) pos = u.occupation.name;
+      if (pos) employees.push({
+        name: `${u.first_name} ${u.last_name}`,
+        pos, photo: u.photo_50,
+        vk: `https://vk.com/${u.screen_name || 'id'+u.id}`
+      });
+    }
+    updateStep(pid,'s4','done', `${employees.length} сотрудников`);
+    updateProgress(pid, 100);
+    setTimeout(() => removeCard(pid), 500);
+    setTimeout(() => renderGroupCard(best, query, employees, total), 600);
+  } catch(e) {
+    removeCard(pid);
+    addBubble('in', `⚠️ Ошибка VK API: ${e.message}`);
+  }
+}
+
+function renderGroupCard(g, query, employees, total) {
+  const m = document.getElementById('msgs');
+  const row = document.createElement('div');
+  row.className = 'mrow in';
+  const link = `https://vk.com/${g.screen_name || 'club'+g.id}`;
+  row.innerHTML = `
+  <div style="max-width:82%">
+    <div class="vk-card">
+      <div class="vc-hero">
+        ${g.photo_200 ? `<img class="vc-av" src="${g.photo_200}">` : `<div class="vc-av-ph">🏢</div>`}
+        <div class="vc-meta">
+          <h3>${g.name}</h3>
+          <div class="sub">${(g.members_count||0).toLocaleString('ru')} участников</div>
+          ${g.verified ? '<div class="vbadge">✓ VK верифицировано</div>' : '<div class="cbadge">не верифицировано</div>'}
+          ${g.description ? `<div style="font-size:11px;color:var(--text2);margin-top:5px;line-height:1.5">${g.description.slice(0,90)}…</div>` : ''}
+        </div>
+      </div>
+      <div class="vc-rows">
+        <div class="vcr"><span class="vci">💬</span><a href="${link}" target="_blank">${link}</a></div>
+        ${g.site ? `<div class="vcr"><span class="vci">🌐</span><a href="${g.site}" target="_blank">${g.site}</a></div>` : ''}
+        <div class="vcr"><span class="vci">👥</span><span>Проверено: ${Math.min(1000,total).toLocaleString('ru')} из ${total.toLocaleString('ru')}</span></div>
+        <div class="vcr"><span class="vci">🧑‍💼</span><span>Сотрудников найдено: <b>${employees.length}</b></span></div>
+      </div>
+      <div class="vc-btns">
+        ${employees.length > 0
+          ? `<button class="vcbtn p" onclick="showEmps(this,${JSON.stringify(employees).replace(/"/g,'&quot;')})">👥 Показать ${employees.length}</button>`
+          : `<button class="vcbtn p" onclick="searchByName('${query.replace(/'/g,"\\'")}',${g.id})">🔍 Поиск по имени</button>`
+        }
+        <button class="vcbtn s" onclick="copyText('${link}')">🔗 Копировать</button>
+      </div>
+      <div class="vc-foot">📌 VK API · groups.search + getMembers · career filter</div>
+    </div>
+    <div style="font-size:11px;color:var(--text2);padding:3px 5px">${getTime()}</div>
+  </div>`;
+  m.appendChild(row);
+  if (!employees.length) addBubble('in', '💡 По полю «место работы» никого не нашлось в первых 1000. Попробуй поиск по имени компании 👆');
+  scrollMsgs();
+}
+
+function showEmps(btn, emps) {
+  btn.closest('.vc-btns').innerHTML = '<span style="font-size:12px;color:var(--text2)">👥 Показано ниже</span>';
+  const m = document.getElementById('msgs');
+  const row = document.createElement('div');
+  row.className = 'mrow in';
+  row.innerHTML = `
+    <div style="max-width:82%">
+      <div class="emp-list">${emps.map(e=>`
+        <div class="emp-card">
+          ${e.photo ? `<img class="emp-av" src="${e.photo}">` : `<div class="emp-av-ph">👤</div>`}
+          <div class="emp-info">
+            <div class="emp-name">${e.name}</div>
+            <div class="emp-pos">${e.pos}</div>
+            <a class="emp-vk" href="${e.vk}" target="_blank">Профиль VK →</a>
+          </div>
+          <button class="cp-btn" onclick="copyText('${e.vk}')">📋</button>
+        </div>`).join('')}
+      </div>
+      <div style="font-size:11px;color:var(--text2);padding:3px 5px">${getTime()} · career field</div>
+    </div>`;
+  m.appendChild(row); scrollMsgs();
+}
+
+async function searchByName(query, groupId) {
+  if (isLoading) return;
+  setLoading(true);
+  addBubble('out', `Поиск «${query}» по имени в VK`);
+  try {
+    const r = await vkCall('users.search', {q: query, fields:'career,photo_50,screen_name', count:50, group_id: groupId});
+    const users = (r.response?.items || []).filter(u => !u.is_closed);
+    if (!users.length) { addBubble('in','😕 users.search ничего не вернул.'); setLoading(false); return; }
+    addBubble('in', `Найдено через users.search: <b>${users.length}</b>`);
+    showEmps({closest:()=>({innerHTML:''})}, users.map(u=>({
+      name:`${u.first_name} ${u.last_name}`,
+      pos: u.career?.[0]?.position || '—',
+      photo: u.photo_50,
+      vk:`https://vk.com/${u.screen_name||'id'+u.id}`
+    })));
+  } catch(e) { addBubble('in', `⚠️ ${e.message}`); }
+  setLoading(false);
+}
+
+// ── AI FLOW ──
+async function aiSearchFlow(query) {
+  const sr = document.createElement('div');
+  sr.className = 'mrow in'; sr.id = 'sr';
+  sr.innerHTML = `<div class="bbl in"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>`;
+  document.getElementById('msgs').appendChild(sr); scrollMsgs();
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514', max_tokens:1000,
+        system:`Универсальный поисковик компаний. Отвечай ТОЛЬКО JSON без markdown:
+{"name":"","category":"","website":"","ru_website":null,"email":null,"phone":null,"vk_url":null,"description":"","tags":[],"confidence":"high/medium/low"}`,
+        messages:[{role:'user', content:query}]
+      })
+    });
+    const d = await r.json();
+    const b = JSON.parse((d.content?.find(x=>x.type==='text')?.text||'').replace(/```json|```/g,'').trim());
+    document.getElementById('sr')?.remove();
+    const m = document.getElementById('msgs');
+    const row = document.createElement('div');
+    row.className = 'mrow in';
+    row.innerHTML = `
+    <div style="max-width:82%">
+      <div class="vk-card">
+        <div class="vc-hero">
+          <div class="vc-av-ph">🏢</div>
+          <div class="vc-meta">
+            <h3>${b.name}</h3>
+            <div class="sub">${b.category}</div>
+            <div class="cbadge">🤖 AI · подключите VK для сотрудников</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:5px;line-height:1.5">${b.description||''}</div>
+          </div>
+        </div>
+        <div class="vc-rows">
+          ${b.website?`<div class="vcr"><span class="vci">🌐</span><a href="${b.website}" target="_blank">${b.website}</a></div>`:''}
+          ${b.ru_website?`<div class="vcr"><span class="vci">🇷🇺</span><a href="${b.ru_website}" target="_blank">${b.ru_website}</a></div>`:''}
+          ${b.email?`<div class="vcr"><span class="vci">✉️</span><span>${b.email}</span></div>`:''}
+          ${b.phone?`<div class="vcr"><span class="vci">📞</span><span>${b.phone}</span></div>`:''}
+          ${b.vk_url?`<div class="vcr"><span class="vci">💬</span><a href="${b.vk_url}" target="_blank">${b.vk_url}</a></div>`:''}
+        </div>
+        <div class="vc-btns">
+          <button class="vcbtn p" disabled>🔒 Войдите в VK</button>
+          <button class="vcbtn s" onclick="copyText('${b.website||''}')">🔗 Сайт</button>
+        </div>
+        <div class="vc-foot">🤖 Claude AI · ${b.confidence === 'high' ? '● высокая точность' : b.confidence === 'medium' ? '◑ средняя точность' : '○ приблизительно'}</div>
+      </div>
+      <div style="font-size:11px;color:var(--text2);padding:3px 5px">${getTime()}</div>
+    </div>`;
+    m.appendChild(row); scrollMsgs();
+  } catch(e) {
+    document.getElementById('sr')?.remove();
+    addBubble('in', `⚠️ Ошибка: ${e.message}`);
+  }
+}
+
+// ── PROGRESS HELPERS ──
+function addProgressCard(id, steps) {
+  const m = document.getElementById('msgs');
+  const row = document.createElement('div');
+  row.className = 'mrow in'; row.id = id;
+  row.innerHTML = `<div><div class="prog-card">
+    <div class="prog-title">⚡ VK поиск...</div>
+    ${steps.map(s=>`<div class="prog-step" id="${id}_${s.id}"><span class="prog-icon">⏳</span><span class="sl">${s.label}</span></div>`).join('')}
+    <div class="prog-bar-wrap"><div class="prog-bar" id="${id}_bar" style="width:0%"></div></div>
+  </div></div>`;
+  m.appendChild(row); scrollMsgs();
+}
+function updateStep(cid, sid, state, extra='') {
+  const el = document.getElementById(`${cid}_${sid}`);
+  if (!el) return;
+  el.className = `prog-step ${state==='done'?'done':state==='active'?'active':''}`;
+  el.querySelector('.prog-icon').textContent = {active:'🔄',done:'✅',err:'❌'}[state]||'⏳';
+  if (extra) el.querySelector('.sl').textContent += ` — ${extra}`;
+}
+function updateProgress(cid, pct) { const b=document.getElementById(`${cid}_bar`); if(b) b.style.width=pct+'%'; }
+function removeCard(id) { document.getElementById(id)?.remove(); }
+
+// ── UI HELPERS ──
+function addDateDiv(label) {
+  const d = document.createElement('div'); d.className='ddiv';
+  d.innerHTML=`<span>${label}</span>`; document.getElementById('msgs').appendChild(d);
+}
+function addBubble(type, html) {
+  const row=document.createElement('div'); row.className=`mrow ${type}`;
+  row.innerHTML=`<div class="bbl ${type}"><div>${html}</div><div class="mtime">${getTime()}</div></div>`;
+  document.getElementById('msgs').appendChild(row); scrollMsgs();
+}
+function scrollMsgs() { const m=document.getElementById('msgs'); m.scrollTop=m.scrollHeight; }
+function setLoading(v) {
+  isLoading=v;
+  document.getElementById('sendBtn').disabled=v;
+  document.getElementById('loadBar').style.display=v?'block':'none';
+  document.getElementById('statusLine').textContent=v?'⚡ поиск...':'готов к поиску';
+}
+function showWelcome() {
+  document.getElementById('msgs').innerHTML=`
+    <div class="welcome">
+      <div class="welcome-icon">🔍</div>
+      <h3>ContactSearch</h3>
+      <p>Введите любую компанию или бренд из любой отрасли. С VK — реальный поиск сотрудников.</p>
+      <div class="chips">
+        <div class="chip" onclick="quickSearch('Knauf')">🏗️ Knauf</div>
+        <div class="chip" onclick="quickSearch('Kaspersky')">💻 Kaspersky</div>
+        <div class="chip" onclick="quickSearch('Londa Professional')">💄 Londa</div>
+        <div class="chip" onclick="quickSearch('Додо Пицца')">🍕 Додо</div>
+        <div class="chip" onclick="quickSearch('Тинькофф')">🏦 Тинькофф</div>
+      </div>
+    </div>`;
+}
+function clearChat() { showWelcome(); }
+function copyText(t) { if(!t) return; navigator.clipboard.writeText(t).then(()=>showToast('Скопировано ✓')); }
+function showToast(msg) {
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2000);
+}
+function toggleTheme() {
+  const h=document.documentElement, dark=h.getAttribute('data-theme')==='dark';
+  h.setAttribute('data-theme', dark?'light':'dark');
+}
+function handleKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendQuery();} }
+function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,90)+'px'; }
+function getTime() { return new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}); }
+</script>
+</body>
+</html>
