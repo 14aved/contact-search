@@ -73,7 +73,8 @@
   .vk-btn{width:100%;padding:7px;background:#0077ff;color:#fff;border:none;border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;transition:background .2s;}
   .vk-btn:hover{background:#0060cc;}
   .vk-btn.logout{background:var(--tag-bg);color:var(--tag-text);}
-  .vk-note{font-size:10px;color:var(--text2);margin-top:6px;line-height:1.5;}
+  .vk-input{width:100%;padding:6px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;outline:none;margin-bottom:6px;font-family:inherit;}
+  .vk-input::placeholder{color:var(--text2);}
 
   /* MAIN */
   .chat-main{flex:1;display:flex;flex-direction:column;background:var(--chat-bg);overflow:hidden;}
@@ -220,8 +221,9 @@
       <span id="vkStatusText">Не подключено</span>
     </div>
     <div id="vkAuthForm">
-      <button class="vk-btn" onclick="startVKAuth()">🔐 Войти через VK</button>
-      <div class="vk-note">Запросит только доступ к группам. Личные данные не используются.</div>
+      <input class="vk-input" id="tokenInput" type="password" placeholder="Вставьте Service Token VK" />
+      <button class="vk-btn" onclick="saveServiceToken()">✅ Подключить</button>
+      <div class="vk-note">Токен сохраняется только в вашем браузере (localStorage).</div>
     </div>
     <div id="vkAuthed" style="display:none">
       <div style="font-size:12px;color:var(--text2);margin-bottom:7px">👤 <span id="vkUserName"></span></div>
@@ -264,8 +266,8 @@
 <script>
 // ── CONFIG ──
 const PIN_HASH = '4d1149f568afc0c6b9759b4bb61b89932ff03a08e9effab79f280ec930b5a3dc';
-const VK_APP_ID   = '54520164';
-const VK_REDIRECT = 'https://claude.ai/artifacts/latest/9dbc134a-c049-4a05-b91a-02f949f393bc';
+const VK_APP_ID   = '54521905';
+const VK_REDIRECT = 'https://14aved.github.io/contact-search';
 const VK_API      = 'https://api.vk.com/method';
 const VK_V        = '5.199';
 
@@ -338,38 +340,27 @@ function unlockApp() {
   renderCategories();
   renderSidebar();
   showWelcome();
-  if (vkToken) setVKAuthed();
+  loadSavedToken();
 }
 
 // ── VK AUTH ──
-function startVKAuth() {
-  const redirect = 'https://claude.ai/artifacts/latest/9dbc134a-c049-4a05-b91a-02f949f393bc';
-  // Пробуем новый VK ID endpoint
-  const url = `https://id.vk.com/authorize?client_id=${VK_APP_ID}&display=popup&redirect_uri=${encodeURIComponent(redirect)}&scope=groups&response_type=token&v=${VK_V}`;
-  const popup = window.open(url, 'vk_auth', 'width=600,height=500,left=200,top=100');
-
-  const timer = setInterval(() => {
-    try {
-      const href = popup?.location?.href || '';
-      if (href.includes('access_token') || href.includes(redirect)) {
-        const hash = popup.location.hash.substring(1);
-        const search = popup.location.search.substring(1);
-        const raw = hash || search;
-        if (raw.includes('access_token')) {
-          clearInterval(timer);
-          popup.close();
-          const p = Object.fromEntries(raw.split('&').map(x => x.split('=')));
-          if (p.access_token) {
-            vkToken = p.access_token;
-            setVKAuthed();
-            showToast('✅ VK подключён!');
-          }
-        }
-      }
-      if (popup?.closed) clearInterval(timer);
-    } catch(e) {}
-  }, 500);
+// ── VK SERVICE TOKEN ──
+function saveServiceToken() {
+  const t = document.getElementById('tokenInput').value.trim();
+  if (!t) { showToast('Введите токен'); return; }
+  localStorage.setItem('vk_st', t);
+  vkToken = t;
+  setVKAuthed();
+  showToast('✅ VK подключён!');
 }
+
+function loadSavedToken() {
+  const t = localStorage.getItem('vk_st');
+  if (t) { vkToken = t; setVKAuthed(); }
+}
+
+function startVKAuth() {} // не используется
+function checkTokenFromHash() {}
 
 function checkTokenFromHash() {
   // При popup-флоу токен читается напрямую, этот метод не нужен
