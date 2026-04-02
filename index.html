@@ -268,8 +268,7 @@
 const PIN_HASH = '4d1149f568afc0c6b9759b4bb61b89932ff03a08e9effab79f280ec930b5a3dc';
 const VK_APP_ID   = '54521905';
 const VK_REDIRECT = 'https://14aved.github.io/contact-search';
-const VK_API      = 'https://api.vk.com/method';
-const VK_V        = '5.199';
+const VK_PROXY = 'https://vk-proxy-production.up.railway.app';
 
 // ── CATEGORIES ──
 const CATEGORIES = [
@@ -373,11 +372,6 @@ function setVKAuthed() {
   document.getElementById('vkAuthForm').style.display = 'none';
   document.getElementById('vkAuthed').style.display = 'block';
   renderSidebar();
-  // load user name
-  vkCall('users.get', {}).then(d => {
-    const u = d.response?.[0];
-    if (u) document.getElementById('vkUserName').textContent = `${u.first_name} ${u.last_name}`;
-  }).catch(()=>{});
 }
 
 function vkLogout() {
@@ -392,30 +386,11 @@ function vkLogout() {
 
 async function vkCall(method, params = {}) {
   if (!vkToken) throw new Error('Нет VK токена');
-  return new Promise((resolve, reject) => {
-    const cbName = 'vk_cb_' + Date.now();
-    const p = new URLSearchParams({...params, access_token: vkToken, v: VK_V, callback: cbName});
-    window[cbName] = (data) => {
-      delete window[cbName];
-      document.getElementById(cbName)?.remove();
-      if (data.error) reject(new Error(`VK: ${data.error.error_msg} (${data.error.error_code})`));
-      else resolve(data);
-    };
-    const script = document.createElement('script');
-    script.id = cbName;
-    script.src = `${VK_API}/${method}?${p}`;
-    script.onerror = () => {
-      delete window[cbName];
-      script.remove();
-      reject(new Error('Failed to fetch'));
-    };
-    document.head.appendChild(script);
-    setTimeout(() => {
-      delete window[cbName];
-      document.getElementById(cbName)?.remove();
-      reject(new Error('Timeout'));
-    }, 10000);
-  });
+  const p = new URLSearchParams(params);
+  const r = await fetch(`${VK_PROXY}/vk/${method}?${p}`);
+  const d = await r.json();
+  if (d.error) throw new Error(`VK: ${d.error.error_msg} (${d.error.error_code})`);
+  return d;
 }
 
 // ── SIDEBAR ──
